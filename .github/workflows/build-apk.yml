@@ -1,0 +1,52 @@
+name: Build Vidya TrackIt APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.24.3
+
+      - name: Print Flutter version
+        run: flutter --version
+
+      # The repo ships only lib/ + pubspec.yaml. We scaffold a fresh Flutter
+      # project (so android/ + Gradle are always correct) then drop our app in.
+      - name: Scaffold Android project and inject app sources
+        run: |
+          flutter create --org com.vidya --project-name vidya_trackit app
+          cp pubspec.yaml app/pubspec.yaml
+          rm -rf app/lib
+          cp -r lib app/lib
+
+      - name: Get packages
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: app
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vidya-trackit-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
