@@ -1,32 +1,59 @@
-# Vidya TrackIt (Flutter demo)
+# Vidya TrackIt
 
-Live bus-tracking demo app for Vidya Engineering College.
-Login -> Dashboard -> Live map with an auto-moving (fake GPS) bus -> proximity alarm.
+Live school-bus tracking for **Vidya Engineering College** - students see their
+bus move on a real map and get an alarm when it's near their stop; drivers share
+their location with one tap.
 
-> 100%% demo: no real GPS, servers, or accounts. Everything is simulated on-device.
+Built with Flutter + Firebase (free Spark plan) + a free Cloudflare Worker +
+OpenStreetMap. No paid plans, no map API keys.
 
-## Build the APK on GitHub (no local setup needed)
+## Features
 
-1. Create a new GitHub repository.
-2. Upload the **contents** of this folder to the repo root, so the repo looks like:
-   - `pubspec.yaml`
-   - `lib/main.dart`
-   - `.github/workflows/build-apk.yml`
-3. Push to the `main` (or `master`) branch. The workflow runs automatically.
-   (Or go to the **Actions** tab -> *Build Vidya TrackIt APK* -> **Run workflow**.)
-4. When the run finishes (green check), open it and download the
-   **vidya-trackit-apk** artifact at the bottom. Inside is `app-release.apk`.
-5. Copy the APK to an Android phone, allow "install from unknown sources", and install.
+- **Role picker** -> Student/Parent or Staff/Driver login.
+- **Driver:** one big Start/End Trip button; a foreground service streams GPS to
+  Realtime Database every ~7s, with a 12-hour auto-stop safety cut-off.
+- **Student:** live OpenStreetMap view with a smoothly-animated bus marker
+  (rotated to heading), your home pin, the route line, speed + last-updated
+  badge, recenter, and a "signal lost" state when data goes stale.
+- **Proximity alarm:** pick a distance (1 km / 500 m / 250 m / at stop); a
+  Cloudflare Worker checks positions on a cron and pushes a full-screen alarm
+  via FCM when the bus arrives - once per day per user.
 
-## Demo login
+## Project layout
 
-- Username: `user`
-- Password: `password`
-- (Any input works — just tap **Login**.)
+```
+lib/
+  main.dart                 app entry + Firebase/notifications/service init
+  config.dart               bus id, fallbacks, runtime flags
+  theme.dart                purple theme + OSM tile URL helper
+  models/                   student, staff, bus_location, proximity_alert
+  services/                 rtdb, auth, notifications, fcm, location (bg service)
+  widgets/ui.dart           shared buttons/cards/fields
+  screens/                  role select, logins, dashboard, driver home, live map
+cloudflare-worker/          cron proximity check + FCM push (free Blaze alt)
+native_config/              AndroidManifest, Info.plist additions, gradle notes
+.github/workflows/          APK build
+SETUP.md                    full setup walkthrough  <-- start here
+```
 
-## What to show
+## Quick start
 
-- Dashboard auto-detects the student's route (Route 12).
-- The map opens and the bus starts moving on its own, looping the route with live speed / ETA.
-- Pick a distance (1 km / 500 m / 250 m / At stop) and tap **Set Proximity Alarm**.
-- When the bus reaches that range of Punkunnam, a full-screen alarm fires with vibration.
+See **SETUP.md**. TL;DR:
+```bash
+flutter pub get
+flutterfire configure      # writes real lib/firebase_options.dart
+flutter run
+```
+Driver demo login: `driver01` / `pass123`. Student login: anything (demo).
+
+## Stack & cost
+
+| | Service | Cost |
+|---|---|---|
+| Auth / Realtime DB / Push | Firebase Spark | Free |
+| Proximity cron + push trigger | Cloudflare Workers | Free |
+| Maps | OpenStreetMap | Free |
+
+> The one paid feature we avoided - a Realtime-Database-triggered Cloud Function
+> (needs Firebase Blaze) - is replaced by the Cloudflare Worker. Trade-off: the
+> check runs every ~1 min instead of instantly. See SETUP.md > Notes.

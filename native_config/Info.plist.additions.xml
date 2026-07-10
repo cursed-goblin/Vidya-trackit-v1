@@ -1,0 +1,22 @@
+<!-- ==========================================================================
+     Add these keys INSIDE the top-level <dict> of ios/Runner/Info.plist
+     (before the closing </dict></plist>). Do not create a second <dict>.
+     ========================================================================== -->
+
+<!-- Location usage strings (required or iOS rejects the permission request) -->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Vidya TrackIt shares the bus location while a trip is active.</string>
+
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>Vidya TrackIt shares the bus location in the background during a trip so students can track it live.</string>
+
+<key>NSLocationAlwaysUsageDescription</key>
+<string>Vidya TrackIt shares the bus location in the background during a trip.</string>
+
+<!-- Background modes: location updates + remote push for the arrival alarm -->
+<key>UIBackgroundModes</key>
+<array>
+    <string>location</string>
+    <string>fetch</string>
+    <string>remote-notification</string>
+</array>

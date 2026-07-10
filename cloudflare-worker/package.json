@@ -1,0 +1,14 @@
+{
+  "name": "vidya-trackit-proximity",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker that runs the Vidya TrackIt proximity check and sends FCM pushes (free replacement for a Firebase Blaze Cloud Function).",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}
