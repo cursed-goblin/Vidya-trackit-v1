@@ -30,6 +30,56 @@ jobs:
         run: |
           flutter create --org com.vidya --project-name vidya_trackit --platforms=android .
 
+      # flutter_local_notifications requires Java 8+ core-library desugaring.
+      # A fresh `flutter create` does not enable it, so patch the generated app
+      # Gradle file (works for both the Groovy build.gradle and the Kotlin DSL
+      # build.gradle.kts that newer Flutter versions generate).
+      - name: Enable core library desugaring
+        run: |
+          python3 - <<'PY'
+          import os, re
+
+          app = "android/app"
+          kts = os.path.join(app, "build.gradle.kts")
+          groovy = os.path.join(app, "build.gradle")
+          if os.path.exists(kts):
+              path, is_kts = kts, True
+          elif os.path.exists(groovy):
+              path, is_kts = groovy, False
+          else:
+              raise SystemExit("No app Gradle file found under android/app")
+
+          with open(path) as f:
+              src = f.read()
+
+          flag = "isCoreLibraryDesugaringEnabled = true" if is_kts else "coreLibraryDesugaringEnabled true"
+          dep = ('coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")'
+                 if is_kts else
+                 "coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'")
+
+          # 1) Turn on the desugaring flag inside compileOptions { }.
+          if "CoreLibraryDesugaringEnabled" not in src:
+              if "compileOptions {" in src:
+                  src = src.replace("compileOptions {",
+                                    "compileOptions {\n        " + flag, 1)
+              else:
+                  block = "\n    compileOptions {\n        %s\n    }\n" % flag
+                  src = re.sub(r"android\s*\{",
+                               lambda m: m.group(0) + block, src, count=1)
+
+          # 2) Add the desugar_jdk_libs dependency (a second dependencies {}
+          #    block is legal - Gradle merges them).
+          if "desugar_jdk_libs" not in src:
+              src = src.rstrip() + "\n\ndependencies {\n    %s\n}\n" % dep
+
+          with open(path, "w") as f:
+              f.write(src)
+
+          print("Patched", path, "(kts)" if is_kts else "(groovy)")
+          print("----- tail -----")
+          print(src[-500:])
+          PY
+
       - name: Apply Android manifest
         run: |
           cp native_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
