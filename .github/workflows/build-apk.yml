@@ -1,4 +1,4 @@
-name: Build Vidya TrackIt APK
+name: Build APK
 
 on:
   push:
@@ -6,47 +6,46 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "17"
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          flutter-version: 3.24.3
+          channel: 'stable'
+          cache: true
 
-      - name: Print Flutter version
-        run: flutter --version
-
-      # The repo ships only lib/ + pubspec.yaml. We scaffold a fresh Flutter
-      # project (so android/ + Gradle are always correct) then drop our app in.
-      - name: Scaffold Android project and inject app sources
+      # The repo ships only lib/, pubspec.yaml, native_config/, etc. Scaffold
+      # the platform folders, then drop our sources + manifest on top.
+      - name: Scaffold platform folders
         run: |
-          flutter create --org com.vidya --project-name vidya_trackit app
-          cp pubspec.yaml app/pubspec.yaml
-          rm -rf app/lib
-          cp -r lib app/lib
+          flutter create --org com.vidya --project-name vidya_trackit --platforms=android .
 
+      - name: Apply Android manifest
+        run: |
+          cp native_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+
+      # google-services.json / lib/firebase_options.dart are NOT in the repo.
+      # The placeholder firebase_options.dart compiles fine; main() catches the
+      # runtime init failure so the demo UI + OSM map still work. FCM + Realtime
+      # Database only go live after you run `flutterfire configure` (see SETUP.md).
       - name: Get packages
-        working-directory: app
         run: flutter pub get
 
-      - name: Build release APK
-        working-directory: app
-        run: flutter build apk --release
+      - name: Build debug APK
+        run: flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: vidya-trackit-apk
-          path: app/build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+          path: build/app/outputs/flutter-apk/app-debug.apk
