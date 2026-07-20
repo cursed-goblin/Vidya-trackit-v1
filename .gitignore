@@ -46,5 +46,40 @@ app.*.map.json
 build/
   
 
-#cloudflare worker
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Firebase secrets
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lb/firebase_options.dart
+serviceAccountKey.json
+firebase-adminsdk-*.json
+
+# Signing
+*.jks
+*.keystore
+android/key.properties
+
+# Env
+.env
+.env.*
+!.env.exampl
+
+
+
+# Cloudflare Worker / Wrangler secrets
+/cloudflare-worker/.dev.vars
+/cloudflare-worker/.env
+/cloudflare-worker/.wrangler/
 /cloudflare-worker/node_modules
+
+
+# macOS Firebase config (only if you ran flutterfire for macOS)
+macos/Runner/GoogleService-Info.plist
+
+  
