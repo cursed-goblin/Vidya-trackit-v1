@@ -56,7 +56,7 @@ build/
 # Firebase secrets
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
-lb/firebase_options.dart
+lib/firebase_options.dart
 serviceAccountKey.json
 firebase-adminsdk-*.json
 
@@ -68,7 +68,7 @@ android/key.properties
 # Env
 .env
 .env.*
-!.env.exampl
+!.env.example
 
 
 
