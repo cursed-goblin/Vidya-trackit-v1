@@ -80,6 +80,57 @@ jobs:
           print(src[-500:])
           PY
 
+      # google-services.json is gitignored - it is per-Firebase-project and
+      # forks must not inherit ours - so it is never present on CI. The Google
+      # Services Gradle plugin hard-fails when it cannot find that file, which
+      # kills the build at :app:processDebugGoogleServices.
+      #
+      # android/app/build.gradle.kts already applies the plugin conditionally,
+      # but `flutter create` above can regenerate that file, so strip the
+      # plugin here as well. Only runs when the JSON really is missing; a
+      # Firebase-configured build keeps the plugin and push notifications.
+      - name: Strip Firebase Gradle plugin when unconfigured
+        run: |
+          python3 - <<'PY'
+          import os, re
+
+          candidates = [
+              "android/app/google-services.json",
+              "android/app/src/google-services.json",
+              "android/app/src/debug/google-services.json",
+              "android/app/src/release/google-services.json",
+          ]
+          if any(os.path.exists(p) for p in candidates):
+              print("google-services.json present - keeping the plugin, FCM enabled")
+              raise SystemExit(0)
+
+          print("google-services.json absent - building without FCM")
+
+          for path in ("android/app/build.gradle.kts", "android/app/build.gradle"):
+              if not os.path.exists(path):
+                  continue
+              with open(path) as f:
+                  src = f.read()
+              before = src
+
+              # plugins { id("com.google.gms.google-services") }  /  Groovy form
+              src = re.sub(
+                  r'^[ \t]*(id[ \t]*[\("\x27].*google-services.*|'
+                  r'apply[ \t]+plugin[ \t]*:.*google-services.*|'
+                  r'apply\(plugin[ \t]*=.*google-services.*\))[ \t]*\)?[ \t]*$\n?',
+                  "",
+                  src,
+                  flags=re.MULTILINE,
+              )
+
+              if src != before:
+                  with open(path, "w") as f:
+                      f.write(src)
+                  print("Removed google-services plugin from", path)
+              else:
+                  print("No google-services plugin line in", path)
+          PY
+
       - name: Apply Android manifest
         run: |
           cp native_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
@@ -106,11 +157,6 @@ jobs:
                 "key set:", bool(cfg["SUPABASE_ANON_KEY"]))
           PY
 
-      # google-services.json / lib/firebase_options.dart are NOT in the repo.
-      # The placeholder firebase_options.dart compiles fine; main() catches the
-      # runtime init failure so the demo UI + OSM map still work. Push
-      # notifications only go live after you run `flutterfire configure`
-      # (see SETUP.md). Live tracking needs the Supabase secrets above.
       - name: Get packages
         run: flutter pub get
 
