@@ -1,59 +1,95 @@
 # Vidya TrackIt
 
-Live school-bus tracking for **Vidya Engineering College** - students see their
-bus move on a real map and get an alarm when it's near their stop; drivers share
-their location with one tap.
+Live college-bus tracking for **Vidya Engineering College** - students and
+teachers watch their bus move on a real map and get an alarm a couple of stops
+before it reaches them; drivers share their location with one tap; the transport
+office manages riders and sees who actually boarded.
 
-Built with Flutter + Firebase (free Spark plan) + a free Cloudflare Worker +
-OpenStreetMap. No paid plans, no map API keys.
+Built with Flutter + **Supabase** (Postgres, Auth, Realtime, Edge Functions) +
+Firebase Cloud Messaging for push + OpenStreetMap. No paid plans, no map API
+keys.
+
+## Why Supabase Realtime
+
+The live bus pin is a `postgres_changes` subscription on the `bus_locations`
+table: the driver's app writes a row, every subscribed rider gets it in well
+under a second, and no extra service sits in between. The free tier covers ~200
+concurrent connections and 2M messages/month, which is comfortable for the
+1-bus demo and the first pilot routes.
+
+Push notifications still go through FCM - Supabase has no push service, and a
+phone with the app closed can only be woken by FCM/APNs.
+
+Scaling notes and the alternatives that were considered (Cloudflare Durable
+Objects, Ably, Centrifugo, MQTT) are in **REALTIME_OPTIONS.md**.
 
 ## Features
 
-- **Role picker** -> Student/Parent or Staff/Driver login.
-- **Driver:** one big Start/End Trip button; a foreground service streams GPS to
-  Realtime Database every ~7s, with a 12-hour auto-stop safety cut-off.
-- **Student:** live OpenStreetMap view with a smoothly-animated bus marker
-  (rotated to heading), your home pin, the route line, speed + last-updated
-  badge, recenter, and a "signal lost" state when data goes stale.
-- **Proximity alarm:** pick a distance (1 km / 500 m / 250 m / at stop); a
-  Cloudflare Worker checks positions on a cron and pushes a full-screen alarm
-  via FCM when the bus arrives - once per day per user.
+- **Three roles** - rider (students *and* teachers), driver, transport office.
+- **Driver:** one big Start/End Trip button; a foreground service streams GPS
+  every ~7s with an offline retry queue, a 12-hour auto-stop, and a visible
+  queue/error state so a silent failure can't masquerade as "broadcasting".
+- **Rider:** live OpenStreetMap view with a smoothly-animated bus marker
+  (rotated to heading), your stop pin, the route line, ETA, speed +
+  last-updated badge, and an honest "signal lost" state.
+- **Arrival alarm:** rings when the bus is within your chosen distance **or**
+  within N stops of your stop (default 2). Stale positions are ignored and
+  there's a 30-minute cooldown, so the evening return trip alarms too.
+- **Admin:** add / remove riders, filter students vs teachers, and see who is
+  on the bus vs not on the bus for the current trip.
 
 ## Project layout
 
 ```
 lib/
-  main.dart                 app entry + Firebase/notifications/service init
-  config.dart               bus id, fallbacks, runtime flags
+  main.dart                 app entry + Supabase/FCM/notifications/service init
+  config.dart               build-time credentials, fallbacks, runtime flags
   theme.dart                purple theme + OSM tile URL helper
   models/                   student, staff, bus_location, proximity_alert
-  services/                 rtdb, auth, notifications, fcm, location (bg service)
+  services/                 bus (Supabase), auth, admin, notifications, fcm,
+                            location (background GPS service)
   widgets/ui.dart           shared buttons/cards/fields
-  screens/                  role select, logins, dashboard, driver home, live map
-cloudflare-worker/          cron proximity check + FCM push (free Blaze alt)
+  screens/                  role select, logins, dashboard, driver home,
+                            live map, admin
+supabase/
+  schema.sql                tables, RLS, realtime publication, RPCs
+  functions/proximity-alarm stop-aware alarm -> FCM (cron every minute)
+  functions/admin-users     admin-only rider create/delete (service role)
 native_config/              AndroidManifest, Info.plist additions, gradle notes
 .github/workflows/          APK build
-SETUP.md                    full setup walkthrough  <-- start here
+SUPABASE_SETUP.md           backend walkthrough   <-- start here
+BUGS.md                     audit of the pre-migration code
+REALTIME_OPTIONS.md         realtime comparison + scaling plan
 ```
 
 ## Quick start
 
-See **SETUP.md**. TL;DR:
+Full walkthrough in **SUPABASE_SETUP.md**. TL;DR:
+
 ```bash
 flutter pub get
-flutterfire configure      # writes real lib/firebase_options.dart
-flutter run
+flutterfire configure          # FCM only -> lib/firebase_options.dart
+
+supabase db push               # or paste supabase/schema.sql in the SQL editor
+supabase functions deploy proximity-alarm admin-users
+
+flutter run \
+  --dart-define=SUPABASE_URL=https://<project>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<anon key>
 ```
-Driver demo login: `driver01` / `pass123`. Student login: anything (demo).
+
+Accounts are created in Supabase (or from the admin screen) - there are no
+hard-coded logins any more. Built without the two `--dart-define`s, the app
+still opens in a read-only demo mode so the UI can be shown offline.
 
 ## Stack & cost
 
-| | Service | Cost |
-|---|---|---|
-| Auth / Realtime DB / Push | Firebase Spark | Free |
-| Proximity cron + push trigger | Cloudflare Workers | Free |
-| Maps | OpenStreetMap | Free |
+| | Service | Free tier | Cost |
+|---|---|---|---|
+| Database + Auth + Realtime + Functions | Supabase | 500MB DB, ~200 concurrent realtime | Free |
+| Push notifications | Firebase Cloud Messaging | unlimited | Free |
+| Maps + tiles | OpenStreetMap | fair use | Free |
 
-> The one paid feature we avoided - a Realtime-Database-triggered Cloud Function
-> (needs Firebase Blaze) - is replaced by the Cloudflare Worker. Trade-off: the
-> check runs every ~1 min instead of instantly. See SETUP.md > Notes.
+> At ~1200 riders you will pass the free realtime concurrency ceiling. The two
+> options then are Supabase Pro (~$25/mo) or a Cloudflare Durable Object
+> fan-out layer in front of the same database - see REALTIME_OPTIONS.md.
