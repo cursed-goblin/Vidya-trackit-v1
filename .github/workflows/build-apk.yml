@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, supabase-migration ]
   workflow_dispatch:
 
 jobs:
@@ -84,15 +84,38 @@ jobs:
         run: |
           cp native_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
 
+      # Supabase config comes from repository secrets, never from the repo.
+      # Settings > Secrets and variables > Actions:
+      #   SUPABASE_URL       https://<ref>.supabase.co
+      #   SUPABASE_ANON_KEY  the anon (public) key - NOT the service-role key
+      # If the secrets are absent the APK still builds and opens in demo mode.
+      - name: Write env.json
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          cfg = {
+              "SUPABASE_URL": os.environ.get("SUPABASE_URL", ""),
+              "SUPABASE_ANON_KEY": os.environ.get("SUPABASE_ANON_KEY", ""),
+          }
+          with open("env.json", "w") as f:
+              json.dump(cfg, f)
+          print("env.json written; url set:", bool(cfg["SUPABASE_URL"]),
+                "key set:", bool(cfg["SUPABASE_ANON_KEY"]))
+          PY
+
       # google-services.json / lib/firebase_options.dart are NOT in the repo.
       # The placeholder firebase_options.dart compiles fine; main() catches the
-      # runtime init failure so the demo UI + OSM map still work. FCM + Realtime
-      # Database only go live after you run `flutterfire configure` (see SETUP.md).
+      # runtime init failure so the demo UI + OSM map still work. Push
+      # notifications only go live after you run `flutterfire configure`
+      # (see SETUP.md). Live tracking needs the Supabase secrets above.
       - name: Get packages
         run: flutter pub get
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug --dart-define-from-file=env.json
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
