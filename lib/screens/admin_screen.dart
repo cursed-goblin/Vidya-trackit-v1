@@ -335,8 +335,7 @@ class _AdminScreenState extends State<AdminScreen> {
             Text(value,
                 style: TextStyle(
                     color: color, fontSize: 30, fontWeight: FontWeight.w800)),
-            const Text(label_placeholder_unused,
-                style: TextStyle(color: kSub, fontSize: 12.5)),
+            Text(label, style: const TextStyle(color: kSub, fontSize: 12.5)),
           ],
         ),
       );
