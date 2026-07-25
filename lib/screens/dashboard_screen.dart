@@ -27,7 +27,7 @@ class DashboardScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Welcome back,',
+                        const Text('Welcome back,',
                             style: TextStyle(color: kSub, fontSize: 14)),
                         Text(s.name,
                             style: const TextStyle(
@@ -112,7 +112,7 @@ class _Card extends StatelessWidget {
         border: Border.all(color: kBorder),
         boxShadow: [
           BoxShadow(
-              color: kHeading.withOpacity(0.04),
+              color: kHeading.withValues(alpha: 0.04),
               blurRadius: 16,
               offset: const Offset(0, 6)),
         ],
@@ -126,7 +126,7 @@ class _Card extends StatelessWidget {
                 height: 38,
                 width: 38,
                 decoration: BoxDecoration(
-                    color: kPurple.withOpacity(0.1),
+                    color: kPurple.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(11)),
                 child: Icon(icon, color: kPurple, size: 20),
               ),
@@ -150,7 +150,7 @@ class _Card extends StatelessWidget {
                     SizedBox(
                       width: 120,
                       child: Text(r.$1,
-                          style: TextStyle(color: kSub, fontSize: 13.5)),
+                          style: const TextStyle(color: kSub, fontSize: 13.5)),
                     ),
                     Expanded(
                       child: Text(r.$2,

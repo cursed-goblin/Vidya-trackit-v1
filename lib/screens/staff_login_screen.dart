@@ -1,26 +1,33 @@
 import 'package:flutter/material.dart';
+
+import '../config.dart';
 import '../services/auth_service.dart';
 import '../theme.dart';
 import '../widgets/ui.dart';
+import 'admin_screen.dart';
 import 'driver_home_screen.dart';
 
-/// Staff / driver login. Minimal: logo, Staff ID, Password, one button.
-/// No signup, no forgot-password. DEMO credential: driver01 / pass123.
+/// Staff login (driver and admin share this form).
+///
+/// Credentials are real Supabase Auth users now - the old hard-coded
+/// `driver01 / pass123` is gone. Where the user lands is decided by
+/// `profiles.role`, not by which button they tapped.
 class StaffLoginScreen extends StatefulWidget {
-  const StaffLoginScreen({super.key});
+  final String title;
+  const StaffLoginScreen({super.key, this.title = 'STAFF LOGIN'});
   @override
   State<StaffLoginScreen> createState() => _StaffLoginScreenState();
 }
 
 class _StaffLoginScreenState extends State<StaffLoginScreen> {
-  final _id = TextEditingController();
+  final _email = TextEditingController();
   final _pass = TextEditingController();
   String? _error;
   bool _loading = false;
 
   @override
   void dispose() {
-    _id.dispose();
+    _email.dispose();
     _pass.dispose();
     super.dispose();
   }
@@ -30,19 +37,33 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
       _loading = true;
       _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 300));
-    final staff = AuthService.instance.loginStaff(_id.text, _pass.text);
+
+    final auth = AuthService.instance;
+    final err = await auth.signIn(_email.text, _pass.text);
     if (!mounted) return;
-    if (staff == null) {
+    if (err != null) {
       setState(() {
         _loading = false;
-        _error = 'Invalid Staff ID or password.';
+        _error = err;
       });
       return;
     }
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const DriverHomeScreen()),
-    );
+
+    if (auth.isAdmin) {
+      Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) =>
+            AdminScreen(busId: auth.staff?.busId ?? kDemoBusId),
+      ));
+    } else if (auth.isDriver) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DriverHomeScreen()),
+      );
+    } else {
+      setState(() {
+        _loading = false;
+        _error = 'This account is not a driver or admin.';
+      });
+    }
   }
 
   @override
@@ -72,24 +93,25 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                           color: Colors.white, size: 30),
                     ),
                     const SizedBox(height: 18),
-                    const Text('DRIVER LOGIN',
+                    Text(widget.title,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.3)),
                     const SizedBox(height: 6),
-                    Text('Vidya TrackIt - Staff access',
+                    Text('Vidya TrackIt - staff access',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 13)),
                     const SizedBox(height: 26),
                     AuthField(
-                        controller: _id,
-                        hint: 'Staff ID',
-                        icon: Icons.badge_outlined),
+                        controller: _email,
+                        hint: 'Email',
+                        icon: Icons.mail_outline_rounded,
+                        keyboardType: TextInputType.emailAddress),
                     const SizedBox(height: 14),
                     AuthField(
                         controller: _pass,
@@ -119,10 +141,10 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                         loading: _loading,
                         onPressed: _login),
                     const SizedBox(height: 14),
-                    Text('Demo credential: driver01 / pass123',
+                    Text('Accounts are created by the transport office',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withValues(alpha: 0.4),
                             fontSize: 11.5)),
                   ],
                 ),

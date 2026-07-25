@@ -44,7 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 build/
-  
 
 # Flutter / Dart
 .dart_tool/
@@ -53,7 +52,7 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 
-# Firebase secrets
+# Firebase secrets (FCM only - no Realtime Database any more)
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
@@ -70,16 +69,12 @@ android/key.properties
 .env.*
 !.env.example
 
-
-
-# Cloudflare Worker / Wrangler secrets
-/cloudflare-worker/.dev.vars
-/cloudflare-worker/.env
-/cloudflare-worker/.wrangler/
-/cloudflare-worker/node_modules
-
+# Supabase config for --dart-define-from-file. env.example.json is the
+# committed template; env.json holds your real project URL + anon key.
+env.json
+supabase/.env
+supabase/.branches/
+supabase/.temp/
 
 # macOS Firebase config (only if you ran flutterfire for macOS)
 macos/Runner/GoogleService-Info.plist
-
-  

@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../config.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../theme.dart';
 import '../widgets/ui.dart';
+import 'admin_screen.dart';
 import 'role_select_screen.dart';
 
-/// Driver home: assigned bus/route, the single Start/End Trip control, and a
-/// live status card for verifying the background service is pushing data.
+/// Driver home: assigned bus/route, the single Start/End Trip control, a live
+/// status card for verifying the background service is pushing data, and the
+/// boarding roster for the current trip.
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
   @override
@@ -19,6 +22,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   bool _busy = false;
   Map<String, dynamic>? _last;
   StreamSubscription<Map<String, dynamic>?>? _sub;
+
+  String get _busId => AuthService.instance.staff?.busId ?? kDemoBusId;
 
   @override
   void initState() {
@@ -40,7 +45,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   Future<void> _toggle(String busId) async {
     setState(() => _busy = true);
     if (_tracking) {
-      await TripController.instance.endTrip();
+      await TripController.instance.endTrip(busId);
       if (mounted) setState(() => _tracking = false);
     } else {
       final err = await TripController.instance.startTrip(busId);
@@ -58,8 +63,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   Future<void> _logout() async {
     // Logout force-stops any active trip so a driver is never tracked off-shift.
-    await TripController.instance.endTrip();
-    AuthService.instance.logout();
+    await TripController.instance.endTrip(_busId);
+    await AuthService.instance.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const RoleSelectScreen()),
@@ -77,10 +82,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final staff = AuthService.instance.staff;
-    final busId = staff?.busId ?? 'bus_12';
+    final busId = _busId;
     final lat = (_last?['lat'] as num?)?.toStringAsFixed(5) ?? '--';
     final lng = (_last?['lng'] as num?)?.toStringAsFixed(5) ?? '--';
     final spd = (_last?['speed'] as num?)?.toStringAsFixed(1) ?? '--';
+    final pending = (_last?['pending'] as num?)?.toInt() ?? 0;
+    final error = '${_last?['error'] ?? ''}';
 
     return Scaffold(
       backgroundColor: kAppBg,
@@ -90,6 +97,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         title: const Text('Driver Home',
             style: TextStyle(color: kHeading, fontWeight: FontWeight.w700)),
         actions: [
+          IconButton(
+            tooltip: 'Boarding roster',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => AdminScreen(busId: busId, canManage: false),
+            )),
+            icon: const Icon(Icons.how_to_reg_rounded, color: kSub),
+          ),
           IconButton(
             tooltip: 'Logout',
             onPressed: _logout,
@@ -116,7 +130,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     height: 46,
                     width: 46,
                     decoration: BoxDecoration(
-                        color: kPurple.withOpacity(0.1),
+                        color: kPurple.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(13)),
                     child: const Icon(Icons.directions_bus_rounded,
                         color: kPurple),
@@ -126,14 +140,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(staff?.busNumber ?? 'KL-08 AV 4412',
+                        Text(staff?.busNumber ?? '--',
                             style: const TextStyle(
                                 color: kHeading,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800)),
                         const SizedBox(height: 3),
-                        Text(staff?.routeName ?? 'Route 12',
-                            style: TextStyle(color: kSub, fontSize: 12.5)),
+                        Text(staff?.routeName ?? '--',
+                            style: const TextStyle(color: kSub, fontSize: 12.5)),
                       ],
                     ),
                   ),
@@ -156,7 +170,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                        color: (_tracking ? kRed : kPurple).withOpacity(0.4),
+                        color: (_tracking ? kRed : kPurple).withValues(alpha: 0.4),
                         blurRadius: 26,
                         offset: const Offset(0, 12)),
                   ],
@@ -183,14 +197,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                             ? 'Sharing your live location'
                             : 'Tap to start sharing location',
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
+                            color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 13)),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 26),
-            // Debug/status card.
+            // Status card.
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -210,8 +224,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                               fontWeight: FontWeight.w700)),
                       const Spacer(),
                       StatusPill(
-                        text: _tracking ? 'Broadcasting' : 'Idle',
-                        color: _tracking ? kGreen : kSub,
+                        text: _tracking
+                            ? (error.isEmpty ? 'Broadcasting' : 'Retrying')
+                            : 'Idle',
+                        color: !_tracking
+                            ? kSub
+                            : (error.isEmpty ? kGreen : kAmber),
                       ),
                     ],
                   ),
@@ -221,6 +239,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   _statRow('Speed', '$spd km/h'),
                   _statRow('Last updated',
                       _fmtTime((_last?['timestamp'] as num?)?.toInt())),
+                  // Surfacing the queue and the last error means a driver can
+                  // see "offline, 3 points queued" instead of assuming all is
+                  // well while nothing reaches the server.
+                  _statRow('Queued points', '$pending'),
+                  if (error.isNotEmpty) _statRow('Last error', error),
                 ],
               ),
             ),
@@ -236,12 +259,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           children: [
             SizedBox(
                 width: 120,
-                child: Text(k, style: TextStyle(color: kSub, fontSize: 13.5))),
-            Text(v,
-                style: const TextStyle(
-                    color: kHeading,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600)),
+                child: Text(k, style: const TextStyle(color: kSub, fontSize: 13.5))),
+            Expanded(
+              child: Text(v,
+                  style: const TextStyle(
+                      color: kHeading,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600)),
+            ),
           ],
         ),
       );

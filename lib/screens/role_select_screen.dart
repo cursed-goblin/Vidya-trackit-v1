@@ -3,7 +3,7 @@ import '../theme.dart';
 import 'login_screen.dart';
 import 'staff_login_screen.dart';
 
-/// First screen: choose Student (passenger) or Staff (driver) login.
+/// First screen: rider (student / teacher), driver, or transport office.
 class RoleSelectScreen extends StatelessWidget {
   const RoleSelectScreen({super.key});
 
@@ -23,7 +23,7 @@ class RoleSelectScreen extends StatelessWidget {
                 const SizedBox(height: 48),
                 _RoleCard(
                   icon: Icons.school_rounded,
-                  title: 'Student / Parent',
+                  title: 'Student / Teacher',
                   subtitle: 'Track your bus and set arrival alerts',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -32,10 +32,23 @@ class RoleSelectScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 _RoleCard(
                   icon: Icons.directions_bus_rounded,
-                  title: 'Staff / Driver',
+                  title: 'Driver',
                   subtitle: 'Share your live location on your route',
                   onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const StaffLoginScreen()),
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const StaffLoginScreen(title: 'DRIVER LOGIN')),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _RoleCard(
+                  icon: Icons.admin_panel_settings_rounded,
+                  title: 'Transport office',
+                  subtitle: 'Manage riders and see who is on the bus',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const StaffLoginScreen(title: 'ADMIN LOGIN')),
                   ),
                 ),
               ],
@@ -61,7 +74,7 @@ class _Logo extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                  color: kPurple.withOpacity(0.5),
+                  color: kPurple.withValues(alpha: 0.5),
                   blurRadius: 26,
                   offset: const Offset(0, 10)),
             ],
@@ -79,7 +92,7 @@ class _Logo extends StatelessWidget {
         const SizedBox(height: 6),
         Text('Vidya Engineering College - Bus Tracker',
             style: TextStyle(
-                color: Colors.white.withOpacity(0.65), fontSize: 13)),
+                color: Colors.white.withValues(alpha: 0.65), fontSize: 13)),
       ],
     );
   }
@@ -107,9 +120,9 @@ class _RoleCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: Row(
             children: [
@@ -117,7 +130,7 @@ class _RoleCard extends StatelessWidget {
                 height: 52,
                 width: 52,
                 decoration: BoxDecoration(
-                  color: kPurple.withOpacity(0.22),
+                  color: kPurple.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: kPurpleLight, size: 26),
@@ -135,13 +148,13 @@ class _RoleCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(subtitle,
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12.5)),
                   ],
                 ),
               ),
               Icon(Icons.chevron_right_rounded,
-                  color: Colors.white.withOpacity(0.5)),
+                  color: Colors.white.withValues(alpha: 0.5)),
             ],
           ),
         ),
