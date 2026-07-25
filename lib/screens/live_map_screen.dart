@@ -225,7 +225,7 @@ class _LiveMapScreenState extends State<LiveMapScreen>
                   polylines: [
                     Polyline(
                       points: [bus, _home],
-                      color: kPurple.withOpacity(0.7),
+                      color: kPurple.withValues(alpha: 0.7),
                       strokeWidth: 4,
                     ),
                   ],
@@ -249,7 +249,7 @@ class _LiveMapScreenState extends State<LiveMapScreen>
                     ),
                 ],
               ),
-              RichAttributionWidget(
+              const RichAttributionWidget(
                 attributions: [
                   TextSourceAttribution('OpenStreetMap contributors'),
                 ],
@@ -275,7 +275,7 @@ class _LiveMapScreenState extends State<LiveMapScreen>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withValues(alpha: 0.15),
                           blurRadius: 10)
                     ],
                   ),
@@ -308,7 +308,7 @@ class _LiveMapScreenState extends State<LiveMapScreen>
             bottom: 190,
             child: _SpeedBadge(
               speed: speed,
-              updatedAgo: _bus == null ? null : _bus!.age,
+              updatedAgo: _bus?.age,
             ),
           ),
 
@@ -368,7 +368,7 @@ class _TopBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.08), blurRadius: 10)
+                        color: Colors.black.withValues(alpha: 0.08), blurRadius: 10)
                   ],
                 ),
                 child: const Text('Live Bus Location',
@@ -435,7 +435,7 @@ class _BusMarker extends StatelessWidget {
               height: 40 + t * 46,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: (stale ? kSub : kPurple).withOpacity(0.28 * (1 - t)),
+                color: (stale ? kSub : kPurple).withValues(alpha: 0.28 * (1 - t)),
               ),
             ),
             Transform.rotate(
@@ -449,7 +449,7 @@ class _BusMarker extends StatelessWidget {
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.3), blurRadius: 8)
+                        color: Colors.black.withValues(alpha: 0.3), blurRadius: 8)
                   ],
                 ),
                 child: const Icon(Icons.navigation_rounded,
@@ -485,7 +485,7 @@ class _SpeedBadge extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)
         ],
       ),
       child: Column(
@@ -495,7 +495,7 @@ class _SpeedBadge extends StatelessWidget {
           Text('${speed.toStringAsFixed(0)} km/h',
               style: const TextStyle(
                   color: kHeading, fontSize: 16, fontWeight: FontWeight.w800)),
-          Text('Updated $ago', style: TextStyle(color: kSub, fontSize: 11)),
+          Text('Updated $ago', style: const TextStyle(color: kSub, fontSize: 11)),
         ],
       ),
     );
@@ -565,7 +565,7 @@ class _BottomSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('$routeName - $busNumber',
-                            style: TextStyle(color: kSub, fontSize: 13)),
+                            style: const TextStyle(color: kSub, fontSize: 13)),
                         const SizedBox(height: 4),
                         Text('Your stop: $nextStop',
                             style: const TextStyle(
@@ -585,14 +585,14 @@ class _BottomSheet extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                               height: 1)),
                       Text(etaMin == null ? 'ETA' : 'min away',
-                          style: TextStyle(color: kSub, fontSize: 12)),
+                          style: const TextStyle(color: kSub, fontSize: 12)),
                     ],
                   ),
                 ],
               ),
               const SizedBox(height: 6),
               Text('Current distance: $distanceLabel',
-                  style: TextStyle(color: kSub, fontSize: 12.5)),
+                  style: const TextStyle(color: kSub, fontSize: 12.5)),
               const Divider(height: 30),
               const Text('Arrival alarm',
                   style: TextStyle(
@@ -600,7 +600,7 @@ class _BottomSheet extends StatelessWidget {
                       fontSize: 15,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
-              Text('The alarm rings when the bus is a few stops away, or '
+              const Text('The alarm rings when the bus is a few stops away, or '
                   'within the distance you pick here:',
                   style: TextStyle(color: kSub, fontSize: 12.5)),
               const SizedBox(height: 12),
@@ -615,7 +615,7 @@ class _BottomSheet extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 18, vertical: 10),
                       decoration: BoxDecoration(
-                        color: sel ? kPurple : kPurple.withOpacity(0.08),
+                        color: sel ? kPurple : kPurple.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(o.$1,

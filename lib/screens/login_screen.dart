@@ -102,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text('Student & teacher login',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 13)),
                     const SizedBox(height: 26),
                     AuthField(
@@ -135,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : 'Demo mode - backend not configured',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withValues(alpha: 0.4),
                             fontSize: 11.5)),
                   ],
                 ),

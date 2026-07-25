@@ -130,7 +130,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     height: 46,
                     width: 46,
                     decoration: BoxDecoration(
-                        color: kPurple.withOpacity(0.1),
+                        color: kPurple.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(13)),
                     child: const Icon(Icons.directions_bus_rounded,
                         color: kPurple),
@@ -147,7 +147,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                                 fontWeight: FontWeight.w800)),
                         const SizedBox(height: 3),
                         Text(staff?.routeName ?? '--',
-                            style: TextStyle(color: kSub, fontSize: 12.5)),
+                            style: const TextStyle(color: kSub, fontSize: 12.5)),
                       ],
                     ),
                   ),
@@ -170,7 +170,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                        color: (_tracking ? kRed : kPurple).withOpacity(0.4),
+                        color: (_tracking ? kRed : kPurple).withValues(alpha: 0.4),
                         blurRadius: 26,
                         offset: const Offset(0, 12)),
                   ],
@@ -197,7 +197,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                             ? 'Sharing your live location'
                             : 'Tap to start sharing location',
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
+                            color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 13)),
                   ],
                 ),
@@ -259,7 +259,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           children: [
             SizedBox(
                 width: 120,
-                child: Text(k, style: TextStyle(color: kSub, fontSize: 13.5))),
+                child: Text(k, style: const TextStyle(color: kSub, fontSize: 13.5))),
             Expanded(
               child: Text(v,
                   style: const TextStyle(

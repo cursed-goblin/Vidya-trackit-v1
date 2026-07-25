@@ -22,7 +22,7 @@ String osmTileUrl() {
   const scheme = 'ht' 'tps';
   const host = 'tile.' 'openstreetmap.' 'org';
   const tokens = '/' '{z}' '/' '{x}' '/' '{y}' '.png';
-  return scheme + '://' + host + tokens;
+  return '$scheme://$host$tokens';
 }
 
 ThemeData buildAppTheme() => ThemeData(

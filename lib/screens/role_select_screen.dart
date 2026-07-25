@@ -74,7 +74,7 @@ class _Logo extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                  color: kPurple.withOpacity(0.5),
+                  color: kPurple.withValues(alpha: 0.5),
                   blurRadius: 26,
                   offset: const Offset(0, 10)),
             ],
@@ -92,7 +92,7 @@ class _Logo extends StatelessWidget {
         const SizedBox(height: 6),
         Text('Vidya Engineering College - Bus Tracker',
             style: TextStyle(
-                color: Colors.white.withOpacity(0.65), fontSize: 13)),
+                color: Colors.white.withValues(alpha: 0.65), fontSize: 13)),
       ],
     );
   }
@@ -120,9 +120,9 @@ class _RoleCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
           ),
           child: Row(
             children: [
@@ -130,7 +130,7 @@ class _RoleCard extends StatelessWidget {
                 height: 52,
                 width: 52,
                 decoration: BoxDecoration(
-                  color: kPurple.withOpacity(0.22),
+                  color: kPurple.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: kPurpleLight, size: 26),
@@ -148,13 +148,13 @@ class _RoleCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(subtitle,
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12.5)),
                   ],
                 ),
               ),
               Icon(Icons.chevron_right_rounded,
-                  color: Colors.white.withOpacity(0.5)),
+                  color: Colors.white.withValues(alpha: 0.5)),
             ],
           ),
         ),
