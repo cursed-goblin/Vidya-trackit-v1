@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../config.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../theme.dart';
@@ -212,7 +211,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     children: [
                       CircleAvatar(
                         backgroundColor: (r.isTeacher ? kAmber : kPurple)
-                            .withOpacity(0.12),
+                            .withValues(alpha: 0.12),
                         child: Icon(
                             r.isTeacher
                                 ? Icons.co_present_rounded
@@ -231,7 +230,8 @@ class _AdminScreenState extends State<AdminScreen> {
                                     fontWeight: FontWeight.w700)),
                             const SizedBox(height: 2),
                             Text('${r.rollNo} - ${r.stopName}',
-                                style: TextStyle(color: kSub, fontSize: 12.5)),
+                                style: const TextStyle(
+                                    color: kSub, fontSize: 12.5)),
                           ],
                         ),
                       ),
@@ -285,7 +285,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   border: Border.all(color: kBorder),
                 ),
                 child: SwitchListTile(
-                  activeColor: kGreen,
+                  activeThumbColor: kGreen,
                   value: r.onBus,
                   onChanged: (v) => _toggleOnBus(r, v),
                   title: Text(r.name,
@@ -293,7 +293,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           color: kHeading, fontWeight: FontWeight.w600)),
                   subtitle: Text(
                       '${r.isTeacher ? 'Teacher' : 'Student'} - ${r.stopName}',
-                      style: TextStyle(color: kSub, fontSize: 12.5)),
+                      style: const TextStyle(color: kSub, fontSize: 12.5)),
                 ),
               );
             },
@@ -310,7 +310,7 @@ class _AdminScreenState extends State<AdminScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: sel ? kPurple : kPurple.withOpacity(0.08),
+          color: sel ? kPurple : kPurple.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(label,
@@ -335,7 +335,8 @@ class _AdminScreenState extends State<AdminScreen> {
             Text(value,
                 style: TextStyle(
                     color: color, fontSize: 30, fontWeight: FontWeight.w800)),
-            Text(label, style: TextStyle(color: kSub, fontSize: 12.5)),
+            const Text(label_placeholder_unused,
+                style: TextStyle(color: kSub, fontSize: 12.5)),
           ],
         ),
       );
@@ -356,7 +357,7 @@ class _ErrorState extends StatelessWidget {
               const SizedBox(height: 12),
               Text(message,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: kSub, fontSize: 13)),
+                  style: const TextStyle(color: kSub, fontSize: 13)),
               const SizedBox(height: 18),
               TextButton(onPressed: onRetry, child: const Text('Try again')),
             ],
@@ -457,7 +458,8 @@ class _AddRiderSheetState extends State<_AddRiderSheet> {
                       fontSize: 18,
                       fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
-              Text('Students and teachers use the same app; the type below is '
+              const Text(
+                  'Students and teachers use the same app; the type below is '
                   'only used for admin filters and counts.',
                   style: TextStyle(color: kSub, fontSize: 12.5)),
               const SizedBox(height: 16),
@@ -481,7 +483,7 @@ class _AddRiderSheetState extends State<_AddRiderSheet> {
                   Icons.badge_outlined),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                value: _stopId,
+                initialValue: _stopId,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Boarding stop',
@@ -496,7 +498,7 @@ class _AddRiderSheetState extends State<_AddRiderSheet> {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Text('Alarm this many stops early',
                         style: TextStyle(color: kSub, fontSize: 13)),
                   ),
@@ -514,7 +516,9 @@ class _AddRiderSheetState extends State<_AddRiderSheet> {
                 const SizedBox(height: 10),
                 Text(_error!,
                     style: const TextStyle(
-                        color: kRed, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                        color: kRed,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600)),
               ],
               const SizedBox(height: 18),
               GradientButton(
