@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config.dart';
-import 'firebase_options.dart';
 import 'screens/role_select_screen.dart';
 import 'services/auth_service.dart';
 import 'services/fcm_service.dart';
@@ -36,13 +35,19 @@ Future<void> main() async {
   }
 
   // ---- Firebase: Cloud Messaging only ----
+  //
+  // No `options:` argument on purpose. Firebase reads its config from the
+  // native files - android/app/google-services.json and
+  // ios/Runner/GoogleService-Info.plist - both of which are gitignored.
+  // Running `flutterfire configure` also generates lib/firebase_options.dart,
+  // but importing it would make the whole project fail to compile for anyone
+  // who has not run that command yet. The app must build and run without FCM;
+  // the alarm simply falls back to a local notification while the app is open.
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    await Firebase.initializeApp();
     gFirebaseReady = true;
   } catch (e) {
-    debugPrint('Firebase (FCM) not configured yet: $e');
+    debugPrint('Firebase (FCM) not configured yet - push alarms disabled: $e');
   }
 
   await initNotifications();
