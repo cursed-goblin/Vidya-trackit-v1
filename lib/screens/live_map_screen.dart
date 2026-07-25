@@ -10,12 +10,12 @@ import '../config.dart';
 import '../models/bus_location.dart';
 import '../models/proximity_alert.dart';
 import '../services/auth_service.dart';
-import '../services/rtdb_service.dart';
+import '../services/bus_service.dart';
 import '../theme.dart';
 
-/// Passenger live map: OpenStreetMap tiles + a smoothly-animated live bus
-/// marker fed from /liveLocations/{busId}, the user's home pin, a route line,
-/// and a draggable bottom sheet with ETA + proximity-alert controls.
+/// Rider live map: OpenStreetMap tiles + a smoothly-animated live bus marker
+/// fed from Supabase Realtime on `bus_locations`, the rider's stop pin, a route
+/// line, and a bottom sheet with ETA + proximity-alert controls.
 class LiveMapScreen extends StatefulWidget {
   final String busId;
   const LiveMapScreen({super.key, required this.busId});
@@ -25,12 +25,12 @@ class LiveMapScreen extends StatefulWidget {
 
 class _LiveMapScreenState extends State<LiveMapScreen>
     with TickerProviderStateMixin {
-  late final AnimatedMapController _map =
-      AnimatedMapController(vsync: this, duration: const Duration(milliseconds: 700));
+  late final AnimatedMapController _map = AnimatedMapController(
+      vsync: this, duration: const Duration(milliseconds: 700));
 
   // Smooth marker interpolation between the last two known positions.
-  late final AnimationController _move =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+  late final AnimationController _move = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1400));
   LatLng? _from;
   LatLng? _to;
   double _bearing = 0;
@@ -46,12 +46,15 @@ class _LiveMapScreenState extends State<LiveMapScreen>
 
   int _thresholdMeters = 500;
   bool _alertSet = false;
+  bool _saving = false;
+  String? _error;
 
   final Distance _distance = const Distance();
 
   LatLng get _home {
     final s = AuthService.instance.student;
-    return LatLng(s?.homeLat ?? kFallbackHomeLat, s?.homeLng ?? kFallbackHomeLng);
+    return LatLng(
+        s?.homeLat ?? kFallbackHomeLat, s?.homeLng ?? kFallbackHomeLng);
   }
 
   LatLng? get _busPos {
@@ -63,13 +66,31 @@ class _LiveMapScreenState extends State<LiveMapScreen>
   void initState() {
     super.initState();
     _move.addListener(() => setState(() {}));
-    // Re-evaluate "signal lost" every few seconds even without new data.
-    _staleTimer = Timer.periodic(
-        const Duration(seconds: 3), (_) => mounted ? setState(() {}) : null);
+    // Re-evaluate "signal lost" periodically even without new data.
+    _staleTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) setState(() {});
+    });
 
     // Seed with a one-time fetch, then subscribe to live updates.
-    RtdbService.instance.fetchBus(widget.busId).then(_onBus);
-    _busSub = RtdbService.instance.watchBus(widget.busId).listen(_onBus);
+    BusService.instance.fetchBus(widget.busId).then(_onBus).catchError((e) {
+      if (mounted) setState(() => _error = '$e');
+    });
+    _busSub = BusService.instance.watchBus(widget.busId).listen(
+      _onBus,
+      onError: (Object e) {
+        if (mounted) setState(() => _error = 'Live updates paused: $e');
+      },
+    );
+
+    // Reflect any alert the rider already has, so the button does not claim
+    // "not set" for a subscription that is actually active.
+    BusService.instance.loadMyAlert().then((a) {
+      if (a == null || !mounted) return;
+      setState(() {
+        _thresholdMeters = a.thresholdMeters;
+        _alertSet = a.enabled;
+      });
+    }).catchError((_) {});
   }
 
   void _onBus(BusLocation? b) {
@@ -105,26 +126,47 @@ class _LiveMapScreenState extends State<LiveMapScreen>
 
   Future<void> _setAlert() async {
     final s = AuthService.instance.student;
-    final alert = ProximityAlert(
-      busId: widget.busId,
-      userId: s?.id ?? 'demo_user',
-      homeLat: _home.latitude,
-      homeLng: _home.longitude,
-      thresholdMeters: _thresholdMeters,
-      enabled: true,
-      fcmToken: gFcmToken ?? '',
-      timezone: 'Asia/Kolkata',
-    );
-    await RtdbService.instance.setProximityAlert(alert);
-    if (!mounted) return;
-    setState(() => _alertSet = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: kGreen,
-        content: Text(
-            'Alert set - you will be notified when the bus is within ${_label(_thresholdMeters)}.'),
-      ),
-    );
+    if (gFcmToken == null) {
+      setState(() => _error =
+          'Allow notifications for this app so the alarm can reach you.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await BusService.instance.setProximityAlert(ProximityAlert(
+        busId: widget.busId,
+        stopId: s?.stopId,
+        targetLat: _home.latitude,
+        targetLng: _home.longitude,
+        thresholdMeters: _thresholdMeters,
+        leadStops: s?.leadStops ?? 2,
+        enabled: true,
+        fcmToken: gFcmToken,
+        timezone: 'Asia/Kolkata',
+      ));
+      if (!mounted) return;
+      setState(() {
+        _alertSet = true;
+        _saving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: kGreen,
+          content: Text('Alarm set - you will be woken when the bus is '
+              '${s?.leadStops ?? 2} stops away or within '
+              '${_label(_thresholdMeters)}.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = 'Could not save the alarm: $e';
+      });
+    }
   }
 
   @override
@@ -142,7 +184,9 @@ class _LiveMapScreenState extends State<LiveMapScreen>
         a.longitude + (b.longitude - a.longitude) * t,
       );
 
-  String _label(int m) => m >= 1000 ? '${(m / 1000).toStringAsFixed(m % 1000 == 0 ? 0 : 1)} km' : '$m m';
+  String _label(int m) => m >= 1000
+      ? '${(m / 1000).toStringAsFixed(m % 1000 == 0 ? 0 : 1)} km'
+      : '$m m';
 
   @override
   Widget build(BuildContext context) {
@@ -151,9 +195,13 @@ class _LiveMapScreenState extends State<LiveMapScreen>
     final distanceM =
         bus == null ? null : _distance.as(LengthUnit.Meter, bus, _home);
     final speed = _bus?.speed ?? 0;
-    final etaMin = (distanceM != null && speed > 5)
-        ? ((distanceM / 1000) / speed * 60).ceil()
-        : null;
+    // The old ETA hid itself whenever speed <= 5 km/h, so it went blank in
+    // exactly the traffic where riders need it. Fall back to a 18 km/h city
+    // average instead of showing nothing.
+    final effectiveSpeed = speed > 8 ? speed : 18.0;
+    final etaMin = (distanceM == null || stale)
+        ? null
+        : math.max(1, ((distanceM / 1000) / effectiveSpeed * 60).ceil());
 
     return Scaffold(
       body: Stack(
@@ -212,18 +260,18 @@ class _LiveMapScreenState extends State<LiveMapScreen>
           // Top app bar
           _TopBar(onBack: () => Navigator.of(context).pop()),
 
-          // Signal-lost banner
-          if (stale)
+          // Signal-lost / error banner
+          if (stale || _error != null)
             Positioned(
               top: 96,
-              left: 0,
-              right: 0,
+              left: 16,
+              right: 16,
               child: Center(
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: kAmber,
+                    color: _error != null ? kRed : kAmber,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
@@ -233,15 +281,21 @@ class _LiveMapScreenState extends State<LiveMapScreen>
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.wifi_off_rounded,
+                    children: [
+                      const Icon(Icons.wifi_off_rounded,
                           color: Colors.white, size: 16),
-                      SizedBox(width: 6),
-                      Text('Signal lost - waiting for the bus',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                            _error ??
+                                (gSupabaseReady
+                                    ? 'Signal lost - waiting for the bus'
+                                    : 'Demo mode - backend not configured'),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600)),
+                      ),
                     ],
                   ),
                 ),
@@ -273,13 +327,14 @@ class _LiveMapScreenState extends State<LiveMapScreen>
 
           // Draggable bottom sheet
           _BottomSheet(
-            busNumber: AuthService.instance.student?.busNumber ?? 'KL-08 AV 4412',
-            routeName: AuthService.instance.student?.routeName ?? 'Route 12',
-            nextStop: AuthService.instance.student?.boardingStop ?? 'Punkunnam',
+            busNumber: AuthService.instance.student?.busNumber ?? '--',
+            routeName: AuthService.instance.student?.routeName ?? '--',
+            nextStop: AuthService.instance.student?.boardingStop ?? '--',
             etaMin: etaMin,
             distanceLabel: distanceM == null ? '--' : _label(distanceM.round()),
             threshold: _thresholdMeters,
             alertSet: _alertSet,
+            saving: _saving,
             onThreshold: (m) => setState(() {
               _thresholdMeters = m;
               _alertSet = false;
@@ -322,8 +377,6 @@ class _TopBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            _circle(Icons.notifications_none_rounded, () {}),
-            const SizedBox(width: 10),
             const CircleAvatar(
                 radius: 23,
                 backgroundColor: kPurple,
@@ -353,10 +406,10 @@ class _HomePin extends StatelessWidget {
   const _HomePin();
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.location_on, color: kPurpleDark, size: 42),
+        Icon(Icons.location_on, color: kPurpleDark, size: 42),
       ],
     );
   }
@@ -442,8 +495,7 @@ class _SpeedBadge extends StatelessWidget {
           Text('${speed.toStringAsFixed(0)} km/h',
               style: const TextStyle(
                   color: kHeading, fontSize: 16, fontWeight: FontWeight.w800)),
-          Text('Updated $ago',
-              style: TextStyle(color: kSub, fontSize: 11)),
+          Text('Updated $ago', style: TextStyle(color: kSub, fontSize: 11)),
         ],
       ),
     );
@@ -458,6 +510,7 @@ class _BottomSheet extends StatelessWidget {
   final String distanceLabel;
   final int threshold;
   final bool alertSet;
+  final bool saving;
   final ValueChanged<int> onThreshold;
   final VoidCallback onSetAlert;
   const _BottomSheet({
@@ -468,6 +521,7 @@ class _BottomSheet extends StatelessWidget {
     required this.distanceLabel,
     required this.threshold,
     required this.alertSet,
+    required this.saving,
     required this.onThreshold,
     required this.onSetAlert,
   });
@@ -500,8 +554,7 @@ class _BottomSheet extends StatelessWidget {
                   width: 44,
                   height: 5,
                   decoration: BoxDecoration(
-                      color: kBorder,
-                      borderRadius: BorderRadius.circular(3)),
+                      color: kBorder, borderRadius: BorderRadius.circular(3)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -514,7 +567,7 @@ class _BottomSheet extends StatelessWidget {
                         Text('$routeName - $busNumber',
                             style: TextStyle(color: kSub, fontSize: 13)),
                         const SizedBox(height: 4),
-                        Text('Next stop: $nextStop',
+                        Text('Your stop: $nextStop',
                             style: const TextStyle(
                                 color: kHeading,
                                 fontSize: 16,
@@ -541,13 +594,14 @@ class _BottomSheet extends StatelessWidget {
               Text('Current distance: $distanceLabel',
                   style: TextStyle(color: kSub, fontSize: 12.5)),
               const Divider(height: 30),
-              const Text('Set Proximity Alert',
+              const Text('Arrival alarm',
                   style: TextStyle(
                       color: kHeading,
                       fontSize: 15,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
-              Text('Get an alarm when the bus is within:',
+              Text('The alarm rings when the bus is a few stops away, or '
+                  'within the distance you pick here:',
                   style: TextStyle(color: kSub, fontSize: 12.5)),
               const SizedBox(height: 12),
               Wrap(
@@ -576,7 +630,7 @@ class _BottomSheet extends StatelessWidget {
               SizedBox(
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: onSetAlert,
+                  onPressed: saving ? null : onSetAlert,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: alertSet ? kGreen : kPurple,
                     foregroundColor: Colors.white,
@@ -586,7 +640,10 @@ class _BottomSheet extends StatelessWidget {
                   icon: Icon(alertSet
                       ? Icons.check_circle_rounded
                       : Icons.notifications_active_rounded),
-                  label: Text(alertSet ? 'Alert is set' : 'Set Proximity Alert',
+                  label: Text(
+                      saving
+                          ? 'Saving...'
+                          : (alertSet ? 'Alarm is set' : 'Set arrival alarm'),
                       style: const TextStyle(
                           fontSize: 15.5, fontWeight: FontWeight.w700)),
                 ),
