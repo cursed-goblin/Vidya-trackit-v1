@@ -19,7 +19,10 @@ Future<void> main() async {
     try {
       await Supabase.initialize(
         url: kSupabaseUrl,
-        anonKey: kSupabaseAnonKey,
+        // `publishableKey` supersedes the deprecated `anonKey` parameter. It
+        // accepts both the legacy anon JWT (eyJ...) and the newer publishable
+        // key (sb_publishable_...), so either value works here.
+        publishableKey: kSupabaseAnonKey,
         realtimeClientOptions:
             const RealtimeClientOptions(logLevel: RealtimeLogLevel.error),
       );
