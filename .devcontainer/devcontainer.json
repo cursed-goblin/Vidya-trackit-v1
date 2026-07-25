@@ -1,0 +1,35 @@
+{
+  "name": "Vidya TrackIt",
+
+  // Flutter stable + Android SDK + JDK 17, all preinstalled. Building an APK
+  // in here works; running an emulator does not (headless container).
+  "image": "ghcr.io/cirruslabs/flutter:stable",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.dart-code",
+        "Dart-Code.flutter",
+        "ms-python.python"
+      ],
+      "settings": {
+        "dart.checkForSdkUpdates": false
+      }
+    }
+  },
+
+  // Codespace secrets land in the environment; the app reads them via
+  // --dart-define-from-file, so materialise env.json from them if present.
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "remoteEnv": {
+    "SUPABASE_URL": "${localEnv:SUPABASE_URL}",
+    "SUPABASE_ANON_KEY": "${localEnv:SUPABASE_ANON_KEY}"
+  }
+}
