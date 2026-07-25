@@ -3,7 +3,7 @@ import '../theme.dart';
 import 'login_screen.dart';
 import 'staff_login_screen.dart';
 
-/// First screen: choose Student (passenger) or Staff (driver) login.
+/// First screen: rider (student / teacher), driver, or transport office.
 class RoleSelectScreen extends StatelessWidget {
   const RoleSelectScreen({super.key});
 
@@ -23,7 +23,7 @@ class RoleSelectScreen extends StatelessWidget {
                 const SizedBox(height: 48),
                 _RoleCard(
                   icon: Icons.school_rounded,
-                  title: 'Student / Parent',
+                  title: 'Student / Teacher',
                   subtitle: 'Track your bus and set arrival alerts',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -32,10 +32,23 @@ class RoleSelectScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 _RoleCard(
                   icon: Icons.directions_bus_rounded,
-                  title: 'Staff / Driver',
+                  title: 'Driver',
                   subtitle: 'Share your live location on your route',
                   onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const StaffLoginScreen()),
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const StaffLoginScreen(title: 'DRIVER LOGIN')),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _RoleCard(
+                  icon: Icons.admin_panel_settings_rounded,
+                  title: 'Transport office',
+                  subtitle: 'Manage riders and see who is on the bus',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const StaffLoginScreen(title: 'ADMIN LOGIN')),
                   ),
                 ),
               ],

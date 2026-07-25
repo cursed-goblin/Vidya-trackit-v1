@@ -19,6 +19,7 @@
 // ---------------------------------------------------------------------------
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { FCM_ENDPOINT } from "./fcm.ts";
 
 const FRESH_SECONDS = 90;   // ignore stale/parked buses - no ghost alarms
 const COOLDOWN_MIN = 30;    // per-rider re-arm window
@@ -43,6 +44,11 @@ Deno.serve(async (req) => {
   }
 });
 
+type Stop = {
+  id: string; route_id: string; name: string;
+  lat: number; lng: number; seq: number;
+};
+
 async function run(): Promise<number> {
   const since = new Date(Date.now() - FRESH_SECONDS * 1000).toISOString();
   const { data: live, error: liveErr } = await sb
@@ -64,13 +70,12 @@ async function run(): Promise<number> {
   if (subErr) throw subErr;
   if (!subs?.length) return 0;
 
-  // Stops per bus, ordered - used for the "2 stops before me" rule.
   const { data: buses } = await sb
     .from("buses").select("id, reg_no, route_id").in("id", busIds);
   const routeIds = (buses ?? []).map((b) => b.route_id).filter(Boolean);
   const { data: stops } = routeIds.length
     ? await sb.from("stops").select("id, route_id, name, lat, lng, seq")
-        .in("route_id", routeIds).order("seq")
+      .in("route_id", routeIds).order("seq")
     : { data: [] as Stop[] };
 
   const stopsByRoute = new Map<string, Stop[]>();
@@ -126,13 +131,8 @@ async function run(): Promise<number> {
   return fired;
 }
 
-type Stop = {
-  id: string; route_id: string; name: string;
-  lat: number; lng: number; seq: number;
-};
-
 // How many stops the bus still has to pass before the rider's stop.
-// null when we cannot tell (no route configured).
+// null when we cannot tell (no route configured, or already passed).
 function stopsAwayFor(
   stops: Stop[],
   bus: { lat: number; lng: number },
@@ -148,7 +148,7 @@ function stopsAwayFor(
     if (d < best) { best = d; nearest = s; }
   }
   const away = rider.seq - nearest.seq;
-  return away < 0 ? null : away;   // bus already passed the stop
+  return away < 0 ? null : away;
 }
 
 function haversine(la1: number, lo1: number, la2: number, lo2: number) {
@@ -165,28 +165,25 @@ async function sendFcm(
   deviceToken: string,
   data: Record<string, string>,
 ): Promise<boolean> {
-  const project = Deno.env.get("FCM_PROJECT_ID");
-  const res = await fetch(
-    `https://fcm.googleapis.com/v1/projects/${project}/messages:send`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: {
-          token: deviceToken,
-          data,                                  // data-only: app draws the alarm
-          android: { priority: "HIGH" },
-          apns: {
-            headers: { "apns-priority": "10", "apns-push-type": "background" },
-            payload: { aps: { "content-available": 1 } },
-          },
-        },
-      }),
+  const project = Deno.env.get("FCM_PROJECT_ID")!;
+  const res = await fetch(FCM_ENDPOINT(project), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      message: {
+        token: deviceToken,
+        data,                                  // data-only: app draws the alarm
+        android: { priority: "HIGH" },
+        apns: {
+          headers: { "apns-priority": "10", "apns-push-type": "background" },
+          payload: { aps: { "content-available": 1 } },
+        },
+      },
+    }),
+  });
   if (!res.ok) console.error("FCM failed", res.status, await res.text());
   return res.ok;
 }
@@ -202,7 +199,8 @@ async function googleAccessToken(): Promise<string> {
     iat: now,
     exp: now + 3600,
   };
-  const unsigned = `${b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${b64url(JSON.stringify(claim))}`;
+  const unsigned =
+    `${b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${b64url(JSON.stringify(claim))}`;
   const key = await crypto.subtle.importKey(
     "pkcs8",
     pkcs8(pem),
